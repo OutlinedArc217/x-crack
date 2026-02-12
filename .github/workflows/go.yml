@@ -1,0 +1,61 @@
+name: Build ARM64 Linux
+
+on:
+  push:
+    branches: [ master, main ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+        cache: true
+
+    - name: Get dependencies
+      run: |
+        go mod download
+        go mod verify
+
+    - name: Build for ARM64 Linux
+      env:
+        GOOS: linux
+        GOARCH: arm64
+        CGO_ENABLED: 0
+      run: |
+        mkdir -p dist
+        go build -v -ldflags="-s -w" -o dist/x-crack-linux-arm64 .
+        
+    - name: Create release package
+      run: |
+        cd dist
+        chmod +x x-crack-linux-arm64
+        tar -czf x-crack-linux-arm64.tar.gz x-crack-linux-arm64
+        sha256sum x-crack-linux-arm64.tar.gz > x-crack-linux-arm64.tar.gz.sha256
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: x-crack-linux-arm64
+        path: |
+          dist/x-crack-linux-arm64.tar.gz
+          dist/x-crack-linux-arm64.tar.gz.sha256
+        retention-days: 30
+
+    - name: Upload binary (uncompressed)
+      uses: actions/upload-artifact@v4
+      with:
+        name: x-crack-linux-arm64-binary
+        path: dist/x-crack-linux-arm64
+        retention-days: 30
